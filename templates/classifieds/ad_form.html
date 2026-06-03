@@ -1578,7 +1578,7 @@
                                             <i class="fas fa-folder-open me-2 text-primary"></i>
                                             {% trans "القسم الحالي" %}
                                         </label>
-                                        <div class="form-control bg-light" style="pointer-events: none;">
+                                        <div class="form-control bg-light" id="editModeCategoryDisplay" style="pointer-events: none;">
                                             {{ original_category.get_breadcrumb|default:original_category.name }}
                                         </div>
                                         <input type="hidden" name="{{ form.category.name }}" id="{{ form.category.id_for_label }}" value="{{ form.category.value }}">
@@ -1886,7 +1886,7 @@
 
                                     <!-- Pricing Info Panel -->
                                     <div id="adPricingInfo" class="mb-4">
-                                        {% if has_free_ads %}
+                                        {% if has_free_ads and not is_editing %}
                                         <div id="freeAdsInfo" class="alert alert-success d-flex align-items-center gap-2 py-2 mb-0">
                                             <i class="fas fa-gift fa-fw"></i>
                                             <span>
@@ -1968,6 +1968,64 @@
                                                                     </ul>
                                                                 </div>
                                                                 <span class="badge bg-success feature-price">{{ feature_prices.pinned|floatformat:False|default:'100' }} {{ selected_currency|currency_symbol }}</span>
+                                                            </div>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Urgent -->
+                                        <div class="col-md-6">
+                                            <div class="card h-100 feature-card" data-feature="urgent" data-price="{{ feature_prices.urgent|floatformat:False|default:'30' }}">
+                                                <div class="card-body">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input feature-checkbox" type="checkbox"
+                                                               id="feature_urgent" name="feature_urgent">
+                                                        <label class="form-check-label w-100" for="feature_urgent">
+                                                            <div class="d-flex justify-content-between align-items-start">
+                                                                <div>
+                                                                    <h5 class="mb-1">
+                                                                        <i class="fas fa-bolt text-danger me-1"></i>
+                                                                        {% trans "إعلان عاجل" %}
+                                                                    </h5>
+                                                                    <p class="small text-muted mb-2">{% trans "يظهر بعلامة عاجل لجذب الانتباه بسرعة" %}</p>
+                                                                    <ul class="small mb-0">
+                                                                        <li>{% trans "شارة عاجل واضحة" %}</li>
+                                                                        <li>{% trans "ظهور أقوى في القوائم" %}</li>
+                                                                        <li>{% trans "رفع معدل التواصل" %}</li>
+                                                                    </ul>
+                                                                </div>
+                                                                <span class="badge bg-danger feature-price">{{ feature_prices.urgent|floatformat:False|default:'30' }} {{ selected_currency|currency_symbol }}</span>
+                                                            </div>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Contact For Price -->
+                                        <div class="col-md-6">
+                                            <div class="card h-100 feature-card" data-feature="contact_for_price" data-price="{{ feature_prices.contact_for_price|floatformat:False|default:'0' }}">
+                                                <div class="card-body">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input feature-checkbox" type="checkbox"
+                                                               id="feature_contact_for_price" name="feature_contact_for_price">
+                                                        <label class="form-check-label w-100" for="feature_contact_for_price">
+                                                            <div class="d-flex justify-content-between align-items-start">
+                                                                <div>
+                                                                    <h5 class="mb-1">
+                                                                        <i class="fas fa-envelope-open-text text-secondary me-1"></i>
+                                                                        {% trans "تواصل ليصلك عرض سعر" %}
+                                                                    </h5>
+                                                                    <p class="small text-muted mb-2">{% trans "إخفاء السعر وإظهار زر التواصل لطلب عرض سعر" %}</p>
+                                                                    <ul class="small mb-0">
+                                                                        <li>{% trans "مرونة أكبر في التفاوض" %}</li>
+                                                                        <li>{% trans "زيادة استفسارات العملاء" %}</li>
+                                                                        <li>{% trans "مناسب للمنتجات المتغيرة السعر" %}</li>
+                                                                    </ul>
+                                                                </div>
+                                                                <span class="badge bg-secondary feature-price">{{ feature_prices.contact_for_price|floatformat:False|default:'0' }} {{ selected_currency|currency_symbol }}</span>
                                                             </div>
                                                         </label>
                                                     </div>
@@ -2203,7 +2261,7 @@
                                                 <strong class="fs-5">{% trans "المجموع الكلي:" %}</strong>
                                                 <strong id="final-total-cost" class="text-success fs-3">0 {{ selected_currency|currency_symbol }}</strong>
                                             </div>
-                                            {% if has_free_ads %}
+                                            {% if has_free_ads and not is_editing %}
                                             <div class="alert alert-info mt-3 mb-0" id="free-ad-message" style="display: none;">
                                                 <i class="fas fa-info-circle me-2"></i>
                                                 {% trans "لن يتم خصم أي مبلغ - لديك إعلانات مجانية متاحة" %}
@@ -3263,6 +3321,7 @@
             const defaultFeaturePrices = {
                 highlighted:      parseFloat('{{ feature_prices.highlighted|floatformat:False|default:"50" }}'),
                 pinned:           parseFloat('{{ feature_prices.pinned|floatformat:False|default:"75" }}'),
+                urgent:           parseFloat('{{ feature_prices.urgent|floatformat:False|default:"30" }}'),
                 auto_refresh:     parseFloat('{{ feature_prices.auto_refresh|floatformat:False|default:"35" }}'),
                 add_video:        parseFloat('{{ feature_prices.add_video|floatformat:False|default:"25" }}'),
                 contact_for_price:parseFloat('{{ feature_prices.contact_for_price|floatformat:False|default:"0" }}'),
@@ -3435,10 +3494,14 @@
                 // Get the base fee for the selected category (or site default)
                 let categoryBaseFee = getCurrentCategoryPrice();
 
-                // Determine if user has free ads - if yes, override any category pricing
+                // Determine base fee
                 let adBaseFee = categoryBaseFee;
-                if (freeAdsCount > 0) {
-                    adBaseFee = 0; // Free if user has remaining free ads (overrides category price)
+                if (isEditMode) {
+                    // Editing never charges the base publishing fee — only new features are charged
+                    adBaseFee = 0;
+                    if (freeAdsDiscountRow) freeAdsDiscountRow.style.display = 'none';
+                } else if (freeAdsCount > 0) {
+                    adBaseFee = 0; // Free if user has remaining free ads
                     if (freeAdsDiscountRow) {
                         freeAdsDiscountRow.style.display = 'flex';
                     }
@@ -3447,9 +3510,7 @@
                     }
                     console.log('✅ Using free ad (overriding category price of', categoryBaseFee, ')');
                 } else {
-                    if (freeAdsDiscountRow) {
-                        freeAdsDiscountRow.style.display = 'none';
-                    }
+                    if (freeAdsDiscountRow) freeAdsDiscountRow.style.display = 'none';
                     console.log('💰 Using category price:', categoryBaseFee);
                 }
 
@@ -3511,7 +3572,7 @@
             // Feature card click handlers
             featureCards.forEach(card => {
                 card.addEventListener('click', function(e) {
-                    // Don't trigger if clicking the checkbox directly
+                    // Don't trigger if clicking the checkbox directly (it fires its own change)
                     if (e.target.type === 'checkbox') return;
 
                     const checkbox = this.querySelector('.feature-checkbox');
@@ -3523,7 +3584,8 @@
                         this.classList.remove('selected');
                     }
 
-                    calculateTotalCost();
+                    // Fire change event so all listeners (video section, pricing) respond
+                    checkbox.dispatchEvent(new Event('change'));
                 });
             });
 
@@ -3931,7 +3993,11 @@
                 const hiddenCategoryInput = document.getElementById('{{ form.category.id_for_label }}');
                 let categoryName = '-';
 
-                if (hiddenCategoryInput && hiddenCategoryInput.value) {
+                if (isEditMode) {
+                    // In edit mode the category dropdowns are hidden; read the display element
+                    const editCatDisplay = document.getElementById('editModeCategoryDisplay');
+                    if (editCatDisplay) categoryName = editCatDisplay.textContent.trim() || '-';
+                } else if (hiddenCategoryInput && hiddenCategoryInput.value) {
                     const breadcrumbParts = [];
 
                     // Get main category text if selected
@@ -4006,7 +4072,9 @@
                     let badgeColor = 'bg-secondary';
                     if (checkbox.id === 'feature_highlighted') badgeColor = 'bg-warning text-dark';
                     else if (checkbox.id === 'feature_pinned')  badgeColor = 'bg-success';
+                    else if (checkbox.id === 'feature_urgent') badgeColor = 'bg-danger';
                     else if (checkbox.id === 'feature_auto_refresh') badgeColor = 'bg-info';
+                    else if (checkbox.id === 'feature_contact_for_price') badgeColor = 'bg-secondary';
                     else if (checkbox.id === 'feature_add_video') badgeColor = 'bg-primary';
                     selectedFeaturesBadges.push(
                         `<span class="badge ${badgeColor} me-2 mb-1">${featureName}${price > 0 ? ` (${price.toFixed(2)} ${CURR})` : ''}</span>`
@@ -4027,11 +4095,12 @@
                 // Update payment summary - already calculated totalFeaturesCost above
                 // Get base fee for selected category (mirrors Python: 0 → site default)
                 const categoryBaseFee = getCurrentCategoryPrice();
-                const adBaseFee = freeAdsCount > 0 ? 0 : categoryBaseFee;
+                // Editing never charges the base fee — only feature additions are charged
+                const adBaseFee = (isEditMode || freeAdsCount > 0) ? 0 : categoryBaseFee;
                 const totalCost = adBaseFee + totalFeaturesCost;
 
-                // Add category price info to review section if user has no free ads
-                if (freeAdsCount === 0 && categoryBaseFee > 0) {
+                // Add category price info to review section if user has no free ads and not editing
+                if (!isEditMode && freeAdsCount === 0 && categoryBaseFee > 0) {
                     const reviewPriceEl = document.getElementById('review-price');
                     if (reviewPriceEl && priceText) {
                         reviewPriceEl.innerHTML = priceText + `<div class="mt-1 text-info small"><i class="fas fa-info-circle me-1"></i>رسوم النشر: ${categoryBaseFee.toFixed(2)} ${CURR}</div>`;
@@ -4045,7 +4114,7 @@
                 const featuresRow = document.getElementById('final-features-row');
 
                 if (finalBaseFeeEl) {
-                    if (freeAdsCount > 0) {
+                    if (isEditMode || freeAdsCount > 0) {
                         finalBaseFeeEl.innerHTML = `<span class="badge bg-success">{% trans "مجاني" %}</span>`;
                     } else {
                         finalBaseFeeEl.textContent = `${adBaseFee.toFixed(2)} ${CURR}`;

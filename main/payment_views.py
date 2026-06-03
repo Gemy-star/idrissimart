@@ -1591,7 +1591,7 @@ def process_ad_upgrade_payment(payment):
     - {"upgrade_features": {"highlighted": True, "duration_days": 7, ...}}  (ad_upgrade_payment path)
     - {"upgrades": [{"type": "featured", "duration": 7, ...}, ...]}          (AdUpgradeProcessView path)
     """
-    from .models import ClassifiedAd, FacebookShareRequest, Notification, AdUpgradeHistory
+    from .models import ClassifiedAd, FacebookShareRequest, Notification, AdUpgradeHistory, AdFeature
 
     ad_id = payment.metadata.get("ad_id")
     if not ad_id:
@@ -1676,7 +1676,13 @@ def process_ad_upgrade_payment(payment):
                 applied_features.append(_("تحديث تلقائي يومي"))
 
             elif utype == "top_search":
-                ad.is_highlighted = True
+                end_date = timezone.now() + timedelta(days=duration or 7)
+                AdFeature.objects.create(
+                    ad=ad,
+                    feature_type=AdFeature.FeatureType.TOP_SEARCH,
+                    end_date=end_date,
+                    is_active=True,
+                )
                 applied_features.append(_("أعلى نتائج البحث"))
 
         ad.save()

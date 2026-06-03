@@ -281,14 +281,10 @@ def send_ad_approval_notification(sender, instance, **kwargs):
 @receiver(post_save, sender=User)
 def assign_default_package_to_new_user(sender, instance, created, **kwargs):
     """
-    Assign default ad package to new DEFAULT users if it exists
-    DEFAULT users get the is_default package
-    PUBLISHER users don't need initial package (they purchase their own)
-
-    Note: If verification is required for free package, the package will be
-    assigned only after email and phone verification is complete.
+    Assign default ad package to every newly registered non-admin user.
+    This guarantees free ad balance is available immediately after signup.
     """
-    if created and instance.profile_type == User.ProfileType.DEFAULT:
+    if created and not instance.is_staff and not instance.is_superuser:
         try:
             # Guard: never assign more than one free package to a user
             if UserPackage.objects.filter(user=instance).exists():
@@ -296,31 +292,6 @@ def assign_default_package_to_new_user(sender, instance, created, **kwargs):
                     f"User {instance.username} already has a package, skipping default assignment"
                 )
                 return
-
-            from content.verification_utils import is_free_package_verification_required
-
-            # Check if verification is required for free package
-            verification_required = is_free_package_verification_required()
-
-            # If verification is required, check if user is verified
-            if verification_required:
-                is_verified = instance.is_email_verified and instance.is_mobile_verified
-                if not is_verified:
-                    # Don't assign package yet - will be assigned after verification
-                    logger.info(
-                        f"Skipping package assignment for user {instance.username} - verification required"
-                    )
-
-                    # Create notification about verification requirement
-                    Notification.objects.create(
-                        user=instance,
-                        title=_("مرحباً بك في إدريسي مارت!"),
-                        message=_(
-                            "للحصول على باقتك المجانية، يجب عليك التحقق من البريد الإلكتروني ورقم الموبايل أولاً."
-                        ),
-                        notification_type=Notification.NotificationType.GENERAL,
-                    )
-                    return
 
             # Get the default ad package (is_default=True)
             default_package = AdPackage.objects.filter(
@@ -895,6 +866,24 @@ def activate_package_on_payment_completion(sender, instance, created, **kwargs):
     """
     # Only trigger if payment was just completed
     if instance.status == Payment.PaymentStatus.COMPLETED:
+        payment_type = (instance.metadata or {}).get("payment_type")
+
+        # Admin may mark paid-banner payments as completed directly from admin.
+        # Ensure the corresponding banner payment_status is synchronized.
+        if payment_type == "paid_banner":
+            try:
+                paid_banner_id = (instance.metadata or {}).get("paid_banner_ad_id")
+                if paid_banner_id:
+                    from .models import PaidBanner
+                    paid_banner = PaidBanner.objects.filter(pk=paid_banner_id).first()
+                    if paid_banner and paid_banner.payment_status != "paid":
+                        from .payment_views import process_paid_banner_payment
+                        process_paid_banner_payment(instance)
+            except Exception as e:
+                logger.error(
+                    f"Error processing paid banner for completed payment #{instance.id}: {str(e)}"
+                )
+
         # Check if UserPackage already exists for this payment
         existing_package = UserPackage.objects.filter(payment=instance).first()
 

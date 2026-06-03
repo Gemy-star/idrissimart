@@ -218,12 +218,12 @@ class ClassifiedAdFilter(django_filters.FilterSet):
         """Safely filter by category with SQL injection protection"""
         if not value:
             return queryset
-        # value is already a Category object from ModelChoiceFilter
-        # If invalid, django-filters returns None
+        # When a subcategory is also selected, let filter_subcategory handle it
+        if self.data.get('subcategory'):
+            return queryset
         try:
             return queryset.filter(category=value)
         except (ValueError, TypeError):
-            # Return empty queryset for invalid values
             return queryset.none()
 
     def filter_subcategory(self, queryset, name, value):

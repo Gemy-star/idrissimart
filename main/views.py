@@ -2389,6 +2389,8 @@ def get_category_price_api(request, category_id):
         _FP_KEY = {
             "featured_section": "highlighted",
             "pinned": "pinned",
+            "urgent": "urgent",
+            "auto_refresh": "auto_refresh",
             "video": "add_video",
             "contact_for_price": "contact_for_price",
             "facebook_share": "facebook_share",
@@ -2396,6 +2398,7 @@ def get_category_price_api(request, category_id):
         _DEFAULTS = {
             "highlighted": float(getattr(_cfg, "FEATURE_HIGHLIGHTED_PRICE", 50.0)),
             "pinned": float(getattr(_cfg, "FEATURE_PINNED_PRICE", 75.0)),
+            "urgent": float(getattr(_cfg, "FEATURE_URGENT_PRICE", 30.0)),
             "auto_refresh": float(getattr(_cfg, "FEATURE_AUTO_REFRESH_PRICE", 35.0)),
             "add_video": float(getattr(_cfg, "FEATURE_ADD_VIDEO_PRICE", 25.0)),
             "contact_for_price": float(getattr(_cfg, "FEATURE_CONTACT_FOR_PRICE", 0.0)),
@@ -2894,18 +2897,30 @@ class ComparisonView(TemplateView):
                         category_ids.add(anc.pk)
 
             cf_label_map = {}
+            cf_value_map = {}
             if category_ids:
                 ccfs = (
                     _CCF.objects.filter(
                         category_id__in=category_ids, is_active=True
                     )
                     .select_related("custom_field")
+                    .prefetch_related("custom_field__field_options")
                     .distinct()
                 )
                 for ccf in ccfs:
                     cf = ccf.custom_field
                     label_ar = cf.label_ar or cf.name
                     label_en = cf.label_en or cf.label_ar or cf.name
+                    option_value_map = {}
+                    for opt in cf.field_options.filter(is_active=True):
+                        opt_key = str(opt.value).strip()
+                        if not opt_key:
+                            continue
+                        option_value_map[opt_key] = {
+                            "label_ar": opt.label_ar or opt_key,
+                            "label_en": opt.label_en or opt.label_ar or opt_key,
+                        }
+
                     for key_variant in (
                         f"custom_{_safe_key(cf.name)}",
                         f"custom_{cf.name}",
@@ -2913,7 +2928,10 @@ class ComparisonView(TemplateView):
                         cf.name,
                     ):
                         cf_label_map[key_variant] = {"label_ar": label_ar, "label_en": label_en}
+                        if option_value_map:
+                            cf_value_map[key_variant] = option_value_map
             context["custom_field_labels"] = cf_label_map
+            context["custom_field_value_labels"] = cf_value_map
 
             # Increment view count for each ad being compared
             # Use F() expression to avoid race conditions
@@ -2926,6 +2944,7 @@ class ComparisonView(TemplateView):
             context["ads_to_compare"] = []
             context["wishlist_ad_ids"] = []
             context["custom_field_labels"] = {}
+            context["custom_field_value_labels"] = {}
 
         context["page_title"] = _("مقارنة الإعلانات")
         return context
@@ -8884,7 +8903,7 @@ def publisher_verify_change_mobile_otp(request):
     old_mobile_local = strip_phone_to_local(user.mobile) if user.mobile else ""
     new_mobile_local = strip_phone_to_local(pending["phone"]) or pending["phone"]
     user.mobile = pending["phone"]
-    user.is_mobile_verified = False       # needs re-verification with the new number
+    user.is_mobile_verified = True        # OTP already proved ownership of this number
     user.mobile_verification_code = ""
     user.mobile_verification_expires = None
     update_fields = ["mobile", "is_mobile_verified", "mobile_verification_code", "mobile_verification_expires"]

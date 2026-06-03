@@ -1614,7 +1614,8 @@ class ClassifiedAd(models.Model):  # This model is correct, no changes needed he
     country = models.ForeignKey(
         "content.Country", on_delete=models.SET_NULL, null=True, blank=True
     )
-    city = models.CharField(max_length=100, verbose_name=_("المدينة"))
+    city = models.CharField(max_length=100, verbose_name=_("المدينة (عربي)"))
+    city_en = models.CharField(max_length=100, blank=True, verbose_name=_("المدينة (إنجليزي)"))
     address = models.CharField(max_length=255, blank=True, verbose_name=_("العنوان"))
 
     # Features

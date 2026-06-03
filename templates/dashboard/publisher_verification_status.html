@@ -472,6 +472,9 @@
                 <div class="check-value ok"><i class="fas fa-check me-1"></i>{% trans "موثق" %}</div>
             {% else %}
                 <div class="check-value err"><i class="fas fa-times me-1"></i>{% trans "غير موثق" %}</div>
+                <button type="button" class="btn btn-primary btn-sm mt-2 rounded-pill" onclick="openMobileVerifyModal()">
+                    <i class="fas fa-sms me-1"></i>{% trans "توثيق الآن" %}
+                </button>
             {% endif %}
             <small style="font-size:.74rem;color:var(--text-muted,#6c757d);">{{ request.user.mobile|default:request.user.phone|default:"—" }}</small>
         </div>
@@ -574,11 +577,11 @@
             <div class="step-content">
                 <p class="step-title">{% trans "تفعيل رقم الجوال" %}</p>
                 <p class="step-desc">{% trans "أدخل رمز التحقق المرسل إلى جوالك" %}</p>
-                {% if not request.user.is_mobile_verified and request.user.mobile %}
+                {% if not request.user.is_mobile_verified %}
                 <div class="step-action">
-                    <a href="{% url 'main:send_mobile_verification' %}" class="btn btn-outline-primary btn-sm rounded-pill">
+                    <button type="button" class="btn btn-outline-primary btn-sm rounded-pill" onclick="openMobileVerifyModal()">
                         <i class="fas fa-sms me-1"></i>{% trans "إرسال رمز التحقق" %}
-                    </a>
+                    </button>
                 </div>
                 {% endif %}
             </div>
@@ -751,5 +754,125 @@
     </a>
 </div>
 {% endif %}
+
+<!-- ===== Mobile Verification Modal ===== -->
+<div class="modal fade" id="mobileVerifyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-mobile-alt me-2 text-primary"></i>{% trans "تفعيل رقم الجوال" %}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Step 1: Enter phone number -->
+        <div id="mvStep1">
+          <p class="text-muted small mb-3">{% trans "أدخل رقم جوالك لإرسال رمز التحقق" %}</p>
+          <input type="tel" id="mvPhoneInput" class="form-control mb-3"
+                 value="{{ request.user.mobile|default:request.user.phone|default:'' }}"
+                 placeholder="{% trans 'رقم الجوال' %}">
+          <button class="btn btn-primary w-100" id="mvSendBtn" onclick="mvSendOtp()">
+            <i class="fas fa-paper-plane me-1"></i>{% trans "إرسال الرمز" %}
+          </button>
+          <div id="mvSendError" class="alert alert-danger mt-2 d-none small"></div>
+        </div>
+
+        <!-- Step 2: Enter OTP -->
+        <div id="mvStep2" class="d-none">
+          <p class="text-muted small mb-3" id="mvOtpDesc"></p>
+          <input type="text" id="mvOtpInput" class="form-control mb-3 text-center"
+                 maxlength="6" placeholder="● ● ● ● ● ●" style="font-size:1.4rem;letter-spacing:.3rem">
+          <button class="btn btn-success w-100" onclick="mvVerifyOtp()">
+            <i class="fas fa-check me-1"></i>{% trans "تأكيد" %}
+          </button>
+          <button class="btn btn-link btn-sm w-100 mt-2" onclick="mvReset()">{% trans "تغيير الرقم" %}</button>
+          <div id="mvOtpError" class="alert alert-danger mt-2 d-none small"></div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function openMobileVerifyModal() {
+  mvReset();
+  new bootstrap.Modal(document.getElementById('mobileVerifyModal')).show();
+}
+
+function mvReset() {
+  document.getElementById('mvStep1').classList.remove('d-none');
+  document.getElementById('mvStep2').classList.add('d-none');
+  document.getElementById('mvSendError').classList.add('d-none');
+  document.getElementById('mvOtpError').classList.add('d-none');
+  document.getElementById('mvOtpInput').value = '';
+}
+
+function mvSendOtp() {
+  const phone = document.getElementById('mvPhoneInput').value.trim();
+  const btn = document.getElementById('mvSendBtn');
+  const errEl = document.getElementById('mvSendError');
+  if (!phone) return;
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> {% trans "جاري الإرسال..." %}';
+  errEl.classList.add('d-none');
+
+  fetch('{% url "main:publisher_send_change_mobile_otp" %}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': '{{ csrf_token }}' },
+    body: 'new_mobile=' + encodeURIComponent(phone)
+  })
+  .then(r => r.json())
+  .then(data => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> {% trans "إرسال الرمز" %}';
+    if (data.success) {
+      document.getElementById('mvOtpDesc').textContent = '{% trans "تم إرسال رمز التحقق إلى" %} ' + (data.full_number || phone);
+      document.getElementById('mvStep1').classList.add('d-none');
+      document.getElementById('mvStep2').classList.remove('d-none');
+      document.getElementById('mvOtpInput').focus();
+    } else {
+      errEl.textContent = data.message || '{% trans "حدث خطأ، حاول مجدداً" %}';
+      errEl.classList.remove('d-none');
+    }
+  })
+  .catch(() => {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> {% trans "إرسال الرمز" %}';
+    errEl.textContent = '{% trans "فشل الاتصال بالخادم" %}';
+    errEl.classList.remove('d-none');
+  });
+}
+
+function mvVerifyOtp() {
+  const otp = document.getElementById('mvOtpInput').value.trim();
+  const errEl = document.getElementById('mvOtpError');
+  if (!otp) return;
+
+  errEl.classList.add('d-none');
+
+  fetch('{% url "main:publisher_verify_change_mobile_otp" %}', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': '{{ csrf_token }}' },
+    body: 'otp_code=' + encodeURIComponent(otp)
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      bootstrap.Modal.getInstance(document.getElementById('mobileVerifyModal')).hide();
+      // Refresh page to show updated verification status
+      window.location.reload();
+    } else {
+      errEl.textContent = data.message || '{% trans "رمز غير صحيح، حاول مجدداً" %}';
+      errEl.classList.remove('d-none');
+    }
+  })
+  .catch(() => {
+    errEl.textContent = '{% trans "فشل الاتصال بالخادم" %}';
+    errEl.classList.remove('d-none');
+  });
+}
+</script>
 
 {% endblock %}

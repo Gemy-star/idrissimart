@@ -38,6 +38,30 @@ from main.decorators import PublisherRequiredMixin, publisher_required
 # ============================================================================
 
 
+def _ensure_user_has_default_package(user):
+    """Create default free package for non-admin users that have no package rows."""
+    if not getattr(user, "is_authenticated", False) or user.is_staff or user.is_superuser:
+        return
+    if UserPackage.objects.filter(user=user).exists():
+        return
+
+    default_package = AdPackage.objects.filter(is_default=True, is_active=True).first()
+    if default_package:
+        UserPackage.objects.create(
+            user=user,
+            package=default_package,
+            ads_remaining=default_package.ad_count,
+            expiry_date=timezone.now() + timedelta(days=default_package.duration_days),
+        )
+    else:
+        UserPackage.objects.create(
+            user=user,
+            package=None,
+            ads_remaining=1,
+            expiry_date=timezone.now() + timedelta(days=365),
+        )
+
+
 class PublisherMyAdsView(PublisherRequiredMixin, ListView):
     """
     Publisher's own ads list with filters
@@ -96,6 +120,9 @@ class PublisherMyAdsView(PublisherRequiredMixin, ListView):
 
         context = super().get_context_data(**kwargs)
         config = SiteConfiguration.get_solo()
+
+        # Safety net for accounts created without auto free package.
+        _ensure_user_has_default_package(self.request.user)
 
         # Get all user ads (including deleted for counting)
         user_ads = ClassifiedAd.objects.filter(user=self.request.user)

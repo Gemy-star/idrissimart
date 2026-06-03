@@ -286,7 +286,7 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
         "hide_price",
         "price_on_request",
     )
-    search_fields = ("title", "description", "user__username")
+    search_fields = ("title", "description", "user__username", "city", "city_en")
     readonly_fields = (
         "created_at", "updated_at", "views_count", "reviewed_at",
         "custom_fields_display", "price_display_mode",
@@ -558,7 +558,7 @@ class ClassifiedAdAdmin(admin.ModelAdmin):
             },
         ),
         (_("التقييم - Rating"), {"fields": ("rating", "rating_count")}),
-        (_("الموقع - Location"), {"fields": ("country", "city", "address")}),
+        (_("الموقع - Location"), {"fields": ("country", "city", "city_en", "address")}),
         (
             _("الظهور والتحكم - Visibility & Access"),
             {

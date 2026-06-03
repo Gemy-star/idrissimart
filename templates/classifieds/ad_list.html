@@ -681,28 +681,29 @@ html[dir="rtl"] .sort-select {
                 <i class="fas fa-chevron-up fch-toggle"></i>
               </div>
               <div class="filter-card-body">
-                <p class="filter-label">{% trans "القسم" %}</p>
+                <p class="filter-label">{% trans "القسم الرئيسي" %}</p>
                 <select name="category" class="al-form-control" id="sidebarCategory">
                   <option value="">{% trans "— جميع الأقسام —" %}</option>
                   {% for cat in root_categories %}
                     <option value="{{ cat.pk }}" {% if request.GET.category|add:"" == cat.pk|stringformat:"s" %}selected{% endif %}>
                       {{ cat.display_name }}
                     </option>
-                    {% for sub in cat.subcategories.all %}{% if sub.is_active %}
-                      <option value="{{ sub.pk }}" {% if request.GET.category|add:"" == sub.pk|stringformat:"s" %}selected{% endif %}>
-                        &emsp;↳ {{ sub.display_name }}
-                      </option>
-                    {% endif %}{% endfor %}
                   {% endfor %}
                 </select>
+
+                <p class="filter-label" id="subcategoryLabel" {% if not request.GET.category %}style="display:none"{% endif %}>{% trans "القسم الفرعي" %}</p>
+                <select name="subcategory" class="al-form-control" id="sidebarSubcategory"
+                        {% if not request.GET.category %}style="display:none"{% endif %}>
+                  <option value="">{% trans "— جميع الأقسام الفرعية —" %}</option>
+                </select>
+
+                <p class="filter-label">{% trans "الدولة" %}</p>
+                {{ filter.form.country }}
 
                 <p class="filter-label">{% trans "المدينة" %}</p>
                 <input type="text" name="city" class="al-form-control"
                        placeholder="{% trans 'اكتب اسم المدينة' %}"
                        value="{{ request.GET.city }}">
-
-                <p class="filter-label">{% trans "الدولة" %}</p>
-                {{ filter.form.country }}
               </div>
             </div>
 
@@ -1036,10 +1037,60 @@ function toggleFilterCard(header) {
   card.classList.toggle('open');
 }
 
-/* Category auto-submit */
+/* Category — load subcategories dynamically */
 const catSelect = document.getElementById('sidebarCategory');
+const subSelect = document.getElementById('sidebarSubcategory');
+const subLabel  = document.getElementById('subcategoryLabel');
+const SELECTED_SUBCATEGORY = '{{ request.GET.subcategory|default:"" }}';
+const LANG = '{{ LANGUAGE_CODE|default:"ar" }}';
+
+function loadSubcategories(categoryId, preselect) {
+  if (!categoryId) {
+    subSelect.style.display = 'none';
+    subLabel.style.display  = 'none';
+    subSelect.innerHTML = '<option value="">— {% trans "جميع الأقسام الفرعية" %} —</option>';
+    return;
+  }
+  subSelect.disabled = true;
+  fetch('/ajax/subcategories/?category_id=' + categoryId)
+    .then(r => r.json())
+    .then(data => {
+      const subs = data.subcategories || [];
+      subSelect.innerHTML = '<option value="">— {% trans "جميع الأقسام الفرعية" %} —</option>';
+      subs.forEach(function(sub) {
+        const o = document.createElement('option');
+        o.value = sub.id;
+        o.textContent = LANG === 'ar' ? (sub.name_ar || sub.name) : sub.name;
+        if (String(sub.id) === String(preselect)) o.selected = true;
+        subSelect.appendChild(o);
+      });
+      if (subs.length > 0) {
+        subSelect.style.display = '';
+        subLabel.style.display  = '';
+      } else {
+        subSelect.style.display = 'none';
+        subLabel.style.display  = 'none';
+      }
+      subSelect.disabled = false;
+    })
+    .catch(function() { subSelect.disabled = false; });
+}
+
 if (catSelect) {
   catSelect.addEventListener('change', function() {
+    loadSubcategories(this.value, '');
+    // Auto-submit when clearing the category selection
+    if (!this.value) {
+      document.getElementById('sidebarFilterForm').submit();
+    }
+  });
+  // On page load: if a category is already selected, load its subcategories
+  if (catSelect.value) {
+    loadSubcategories(catSelect.value, SELECTED_SUBCATEGORY);
+  }
+}
+if (subSelect) {
+  subSelect.addEventListener('change', function() {
     document.getElementById('sidebarFilterForm').submit();
   });
 }

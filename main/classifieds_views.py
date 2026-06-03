@@ -23,11 +23,36 @@ from .models import (
     Category,
     ClassifiedAd,
     Notification,
+    Payment,
     SavedSearch,
     User,
     UserPackage,
 )
 from .utils import get_selected_country_from_request
+
+
+def _ensure_user_has_default_package(user):
+    """Create default free package for non-admin users that have no package rows."""
+    if not getattr(user, "is_authenticated", False) or user.is_staff or user.is_superuser:
+        return
+    if UserPackage.objects.filter(user=user).exists():
+        return
+
+    default_package = AdPackage.objects.filter(is_default=True, is_active=True).first()
+    if default_package:
+        UserPackage.objects.create(
+            user=user,
+            package=default_package,
+            ads_remaining=default_package.ad_count,
+            expiry_date=timezone.now() + timezone.timedelta(days=default_package.duration_days),
+        )
+    else:
+        UserPackage.objects.create(
+            user=user,
+            package=None,
+            ads_remaining=1,
+            expiry_date=timezone.now() + timezone.timedelta(days=365),
+        )
 
 
 class ClassifiedAdListView(FilterView):
@@ -124,10 +149,18 @@ class ClassifiedAdListView(FilterView):
             except Exception:
                 active_filters.append({'label': _('الدولة'), 'value': country_val, 'key': 'country'})
 
-        if category_id:
+        cat_id = params.get('category', '').strip()
+        subcat_id = params.get('subcategory', '').strip()
+        if subcat_id:
             try:
-                cat = Category.objects.get(pk=category_id)
-                active_filters.append({'label': _('القسم'), 'value': cat.name, 'key': 'category'})
+                cat = Category.objects.get(pk=subcat_id)
+                active_filters.append({'label': _('القسم الفرعي'), 'value': cat.display_name, 'key': 'subcategory'})
+            except Exception:
+                pass
+        elif cat_id:
+            try:
+                cat = Category.objects.get(pk=cat_id)
+                active_filters.append({'label': _('القسم'), 'value': cat.display_name, 'key': 'category'})
             except Exception:
                 pass
 
@@ -179,6 +212,9 @@ class MyClassifiedAdsView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context["active_nav"] = "my_ads"
 
+        # Safety net for old accounts that were created without auto free package.
+        _ensure_user_has_default_package(self.request.user)
+
         # Add statistics
         user_ads = ClassifiedAd.objects.filter(user=self.request.user)
         context["stats"] = {
@@ -210,8 +246,12 @@ class MyClassifiedAdsView(LoginRequiredMixin, ListView):
             .order_by("-expiry_date")
         )
 
-        # Calculate total ads remaining from all active packages
-        total_ads_remaining = sum(pkg.ads_remaining for pkg in active_packages)
+        # Member free-balance should mirror the default free package when it exists.
+        free_package = active_packages.filter(package__is_default=True).first()
+        if free_package:
+            total_ads_remaining = free_package.ads_remaining
+        else:
+            total_ads_remaining = sum(pkg.ads_remaining for pkg in active_packages)
 
         context["package_info"] = {
             "total_ads_remaining": total_ads_remaining,
@@ -491,6 +531,8 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
         _FP_KEY = {
             "featured_section": "highlighted",
             "pinned": "pinned",
+            "urgent": "urgent",
+            "auto_refresh": "auto_refresh",
             "video": "add_video",
             "contact_for_price": "contact_for_price",
             "facebook_share": "facebook_share",
@@ -588,6 +630,9 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                     "contact_for_price": float(package.feature_contact_for_price),
                     "auto_refresh": float(package.feature_auto_refresh_price),
                     "add_video": float(package.feature_add_video_price),
+                    "facebook_share": float(
+                        getattr(constance_config, "FACEBOOK_SHARE_AD_PRICE", 35.0)
+                    ),
                 }
                 context["pricing_source"] = "package"
                 context["active_package_id"] = active_package.pk
@@ -601,6 +646,9 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                     "contact_for_price": 0.0,
                     "auto_refresh": 0.0,
                     "add_video": 0.0,
+                    "facebook_share": float(
+                        getattr(constance_config, "FACEBOOK_SHARE_AD_PRICE", 35.0)
+                    ),
                 }
                 context["pricing_source"] = "free"
                 context["active_package_id"] = active_package.pk
@@ -625,6 +673,9 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                     ),
                     "add_video": float(
                         getattr(constance_config, "FEATURE_ADD_VIDEO_PRICE", 25.0)
+                    ),
+                    "facebook_share": float(
+                        getattr(constance_config, "FACEBOOK_SHARE_AD_PRICE", 35.0)
                     ),
                 }
                 context["pricing_source"] = "constance"
@@ -652,6 +703,9 @@ class ClassifiedAdCreateView(LoginRequiredMixin, CreateView):
                 ),
                 "add_video": float(
                     getattr(constance_config, "FEATURE_ADD_VIDEO_PRICE", 25.0)
+                ),
+                "facebook_share": float(
+                    getattr(constance_config, "FACEBOOK_SHARE_AD_PRICE", 35.0)
                 ),
             }
             context["pricing_source"] = "constance"
@@ -940,6 +994,8 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
         _FP_KEY2 = {
             "featured_section": "highlighted",
             "pinned": "pinned",
+            "urgent": "urgent",
+            "auto_refresh": "auto_refresh",
             "video": "add_video",
             "contact_for_price": "contact_for_price",
             "facebook_share": "facebook_share",
@@ -982,14 +1038,9 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
         context["phone_verification_needed"] = phone_verification_needed
 
         if self.request.user.is_authenticated:
-            active_packages = UserPackage.objects.filter(
-                user=self.request.user,
-                expiry_date__gte=timezone.now(),
-                ads_remaining__gt=0,
-            )
-            total_ads_remaining = sum(pkg.ads_remaining for pkg in active_packages)
-            context["has_free_ads"] = total_ads_remaining > 0
-            context["free_ads_remaining"] = total_ads_remaining
+            # Editing never deducts from package balance — hide package messages
+            context["has_free_ads"] = False
+            context["free_ads_remaining"] = 0
 
             active_package = (
                 UserPackage.objects.filter(
@@ -1014,6 +1065,9 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
                     "contact_for_price": float(package.feature_contact_for_price),
                     "auto_refresh": float(package.feature_auto_refresh_price),
                     "add_video": float(package.feature_add_video_price),
+                    "facebook_share": float(
+                        getattr(constance_config, "FACEBOOK_SHARE_AD_PRICE", 35.0)
+                    ),
                 }
                 context["pricing_source"] = "package"
                 context["active_package_id"] = active_package.pk
@@ -1026,6 +1080,9 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
                     "contact_for_price": 0.0,
                     "auto_refresh": 0.0,
                     "add_video": 0.0,
+                    "facebook_share": float(
+                        getattr(constance_config, "FACEBOOK_SHARE_AD_PRICE", 35.0)
+                    ),
                 }
                 context["pricing_source"] = "free"
                 context["active_package_id"] = active_package.pk
@@ -1038,6 +1095,7 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
                     "contact_for_price": float(getattr(constance_config, "FEATURE_CONTACT_FOR_PRICE", 0.0)),
                     "auto_refresh": float(getattr(constance_config, "FEATURE_AUTO_REFRESH_PRICE", 35.0)),
                     "add_video": float(getattr(constance_config, "FEATURE_ADD_VIDEO_PRICE", 25.0)),
+                    "facebook_share": float(getattr(constance_config, "FACEBOOK_SHARE_AD_PRICE", 35.0)),
                 }
                 context["pricing_source"] = "constance"
                 context["active_package_id"] = None
@@ -1052,6 +1110,7 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
                 "contact_for_price": float(getattr(constance_config, "FEATURE_CONTACT_FOR_PRICE", 0.0)),
                 "auto_refresh": float(getattr(constance_config, "FEATURE_AUTO_REFRESH_PRICE", 35.0)),
                 "add_video": float(getattr(constance_config, "FEATURE_ADD_VIDEO_PRICE", 25.0)),
+                "facebook_share": float(getattr(constance_config, "FACEBOOK_SHARE_AD_PRICE", 35.0)),
             }
             context["pricing_source"] = "constance"
             context["active_package_id"] = None
@@ -1060,6 +1119,9 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
         return context
 
     def form_valid(self, form):
+        from decimal import Decimal
+        from constance import config as constance_cfg
+
         context = self.get_context_data()
         image_formset = context["image_formset"]
 
@@ -1074,20 +1136,16 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
             return self.render_to_response(self.get_context_data(form=form))
 
         if form.is_valid() and image_formset.is_valid():
-            # Determine if updated ad needs re-approval
             needs_approval = False
             original_status = self.object.status
-
-            # Check if content has changed (title, description, or price)
-            # Get original values from database (before form changes)
             original_ad = ClassifiedAd.objects.get(pk=self.object.pk)
+
             content_changed = (
                 form.cleaned_data.get("title") != original_ad.title
                 or form.cleaned_data.get("description") != original_ad.description
                 or form.cleaned_data.get("price") != original_ad.price
             )
 
-            # Check if images were added or changed
             images_changed = False
             for img_form in image_formset:
                 if img_form.has_changed() and img_form.cleaned_data.get("image"):
@@ -1095,7 +1153,6 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
                     break
 
             if not self.request.user.is_staff:
-                # If content or images changed, require admin approval
                 if (
                     content_changed or images_changed
                 ) and original_status == ClassifiedAd.AdStatus.ACTIVE:
@@ -1103,9 +1160,69 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
                     form.instance.status = ClassifiedAd.AdStatus.PENDING
                     form.instance.is_resubmitted = True
 
+            # ── Calculate cost for newly added features only ────────────
+            feature_highlighted     = self.request.POST.get("feature_highlighted") == "on"
+            feature_urgent          = self.request.POST.get("feature_urgent") == "on"
+            feature_pinned          = self.request.POST.get("feature_pinned") == "on"
+            feature_contact_price   = self.request.POST.get("feature_contact_for_price") == "on"
+            feature_auto_refresh    = self.request.POST.get("feature_auto_refresh") == "on"
+            feature_add_video       = self.request.POST.get("feature_add_video") == "on"
+
+            # Charge only for features being added (not already present on the ad)
+            new_highlighted  = feature_highlighted  and not original_ad.is_highlighted
+            new_urgent       = feature_urgent       and not original_ad.is_urgent
+            new_pinned       = feature_pinned       and not original_ad.is_pinned
+            new_auto_refresh = feature_auto_refresh and not original_ad.auto_refresh
+            new_add_video    = feature_add_video    and not (original_ad.video_url or original_ad.video_file)
+
+            active_package = (
+                UserPackage.objects.filter(
+                    user=self.request.user,
+                    expiry_date__gte=timezone.now(),
+                    ads_remaining__gt=0,
+                )
+                .order_by("expiry_date")
+                .first()
+            )
+
+            features_cost = Decimal("0.00")
+            if active_package and active_package.package:
+                pkg = active_package.package
+                if new_highlighted:  features_cost += Decimal(str(pkg.feature_highlighted_price))
+                if new_urgent:       features_cost += Decimal(str(pkg.feature_urgent_price))
+                if new_pinned:       features_cost += Decimal(str(pkg.feature_pinned_price))
+                if new_auto_refresh: features_cost += Decimal(str(pkg.feature_auto_refresh_price))
+                if new_add_video:    features_cost += Decimal(str(pkg.feature_add_video_price))
+            else:
+                if new_highlighted:  features_cost += Decimal(str(getattr(constance_cfg, "FEATURE_HIGHLIGHTED_PRICE", 50.0)))
+                if new_urgent:       features_cost += Decimal(str(getattr(constance_cfg, "FEATURE_URGENT_PRICE", 30.0)))
+                if new_pinned:       features_cost += Decimal(str(getattr(constance_cfg, "FEATURE_PINNED_PRICE", 75.0)))
+                if new_auto_refresh: features_cost += Decimal(str(getattr(constance_cfg, "FEATURE_AUTO_REFRESH_PRICE", 35.0)))
+                if new_add_video:    features_cost += Decimal(str(getattr(constance_cfg, "FEATURE_ADD_VIDEO_PRICE", 25.0)))
+
             self.object = form.save()
             image_formset.instance = self.object
             image_formset.save()
+
+            # If newly added features require payment, redirect to payment page
+            if features_cost > 0:
+                features_dict = {
+                    "highlighted": feature_highlighted,
+                    "urgent": feature_urgent,
+                    "pinned": feature_pinned,
+                    "contact_for_price": feature_contact_price,
+                    "auto_refresh": feature_auto_refresh,
+                    "add_video": feature_add_video,
+                }
+                self.request.session["pending_ad_id"] = self.object.pk
+                self.request.session["ad_features"] = features_dict
+                self.request.session["ad_payment_amount"] = str(features_cost)
+                self.request.session["ad_base_fee"] = "0"
+                self.request.session["ad_features_cost"] = str(features_cost)
+                self.request.session["has_active_package"] = active_package is not None
+                self.request.session["has_free_ads"] = False
+                self.request.session.modified = True
+                return redirect("main:ad_payment", ad_id=self.object.pk)
 
             if needs_approval:
                 messages.info(
@@ -1119,7 +1236,6 @@ class ClassifiedAdUpdateView(LoginRequiredMixin, UpdateView):
 
             return redirect(self.get_success_url())
         else:
-            # Add formset errors to messages for debugging
             if not image_formset.is_valid():
                 for error in image_formset.errors:
                     if error:
@@ -1140,6 +1256,34 @@ class ClassifiedAdCreateSuccessView(LoginRequiredMixin, DetailView):
 
     def get_queryset(self):
         return ClassifiedAd.objects.filter(user=self.request.user)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        ad = context.get("ad")
+
+        # Recovery path: if payment is completed but callback/flow hasn't updated
+        # the ad yet, process it here so the status does not remain draft.
+        if ad and ad.status == ClassifiedAd.AdStatus.DRAFT:
+            from django.db.models import Q
+            from .payment_views import process_ad_payment
+
+            completed_payment = (
+                Payment.objects.filter(
+                    user=self.request.user,
+                    status=Payment.PaymentStatus.COMPLETED,
+                )
+                .filter(Q(metadata__ad_id=ad.id) | Q(metadata__ad_id=str(ad.id)))
+                .exclude(metadata__payment_type="ad_upgrade")
+                .exclude(metadata__payment_type="paid_banner")
+                .order_by("-completed_at", "-id")
+                .first()
+            )
+
+            if completed_payment:
+                process_ad_payment(completed_payment)
+                ad.refresh_from_db(fields=["status", "is_paid", "require_review", "reviewed_at"])
+
+        return context
 
 
 def classifieds_id_redirect(request, pk):
@@ -2859,6 +3003,7 @@ class AdUnifiedUpgradeView(LoginRequiredMixin, DetailView):
         h7 = _get_category_feature_price(category, "featured_section", "FEATURED_AD_PRICE_7DAYS", 50.00)
         p7 = _get_category_feature_price(category, "pinned", "PINNED_AD_PRICE_7DAYS", 75.00)
         u7 = _get_category_feature_price(category, "urgent", "URGENT_AD_PRICE_7DAYS", 30.00)
+        ts7 = _get_category_feature_price(category, "top_search", "TOP_SEARCH_AD_PRICE_7DAYS", 60.00)
 
         # Duration scaling ratios from constance (14/30-day relative to 7-day base)
         cfg_h7 = Decimal(str(getattr(config, "FEATURED_AD_PRICE_7DAYS", 50.00)))
@@ -2870,6 +3015,9 @@ class AdUnifiedUpgradeView(LoginRequiredMixin, DetailView):
         cfg_u7 = Decimal(str(getattr(config, "URGENT_AD_PRICE_7DAYS", 30.00)))
         cfg_u14 = Decimal(str(getattr(config, "URGENT_AD_PRICE_14DAYS", 48.00)))
         cfg_u30 = Decimal(str(getattr(config, "URGENT_AD_PRICE_30DAYS", 60.00)))
+        cfg_ts7 = Decimal(str(getattr(config, "TOP_SEARCH_AD_PRICE_7DAYS", 60.00)))
+        cfg_ts14 = Decimal(str(getattr(config, "TOP_SEARCH_AD_PRICE_14DAYS", 96.00)))
+        cfg_ts30 = Decimal(str(getattr(config, "TOP_SEARCH_AD_PRICE_30DAYS", 120.00)))
 
         context["highlighted_price"] = h7
         context["highlighted_price_14"] = scale(h7, cfg_h14, cfg_h7)
@@ -2882,6 +3030,10 @@ class AdUnifiedUpgradeView(LoginRequiredMixin, DetailView):
         context["urgent_price"] = u7
         context["urgent_price_14"] = scale(u7, cfg_u14, cfg_u7)
         context["urgent_price_30"] = scale(u7, cfg_u30, cfg_u7)
+
+        context["top_search_price"] = ts7
+        context["top_search_price_14"] = scale(ts7, cfg_ts14, cfg_ts7)
+        context["top_search_price_30"] = scale(ts7, cfg_ts30, cfg_ts7)
 
         ar_price = _get_category_feature_price(category, "auto_refresh", "FEATURE_AUTO_REFRESH_PRICE", 35.00)
         context["auto_refresh_price"] = ar_price
@@ -2924,6 +3076,7 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
         upgrade_highlighted = request.POST.get("upgrade_highlighted") == "1"
         upgrade_pinned = request.POST.get("upgrade_pinned") == "1"
         upgrade_urgent = request.POST.get("upgrade_urgent") == "1"
+        upgrade_top_search = request.POST.get("upgrade_top_search") == "1"
 
         # Get selected features
         feature_contact = request.POST.get("feature_contact_for_price") == "1"
@@ -2934,6 +3087,7 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
         highlighted_duration = int(request.POST.get("highlighted_duration") or 0)
         pinned_duration = int(request.POST.get("pinned_duration") or 0)
         urgent_duration = int(request.POST.get("urgent_duration") or 0)
+        top_search_duration = int(request.POST.get("top_search_duration") or 0)
 
         # Calculate total amount
         total_amount = Decimal("0.00")
@@ -2954,6 +3108,9 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
         cfg_u7 = Decimal(str(getattr(config, "URGENT_AD_PRICE_7DAYS", 30.00)))
         cfg_u14 = Decimal(str(getattr(config, "URGENT_AD_PRICE_14DAYS", 48.00)))
         cfg_u30 = Decimal(str(getattr(config, "URGENT_AD_PRICE_30DAYS", 60.00)))
+        cfg_ts7 = Decimal(str(getattr(config, "TOP_SEARCH_AD_PRICE_7DAYS", 60.00)))
+        cfg_ts14 = Decimal(str(getattr(config, "TOP_SEARCH_AD_PRICE_14DAYS", 96.00)))
+        cfg_ts30 = Decimal(str(getattr(config, "TOP_SEARCH_AD_PRICE_30DAYS", 120.00)))
 
         def _scale(base, ratio_num, ratio_den):
             if ratio_den > 0:
@@ -2962,6 +3119,7 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
 
         h7 = _get_category_feature_price(category, "featured_section", "FEATURED_AD_PRICE_7DAYS", 50.00)
         p7 = _get_category_feature_price(category, "pinned", "PINNED_AD_PRICE_7DAYS", 75.00)
+        ts7 = _get_category_feature_price(category, "top_search", "TOP_SEARCH_AD_PRICE_7DAYS", 60.00)
 
         # Process upgrades
         if upgrade_highlighted and highlighted_duration > 0:
@@ -3016,6 +3174,24 @@ class AdUnifiedUpgradeProcessView(LoginRequiredMixin, View):
                     "duration": urgent_duration,
                     "price": str(price),
                     "name": _("إعلان عاجل"),
+                }
+            )
+
+        if upgrade_top_search and top_search_duration > 0:
+            if top_search_duration == 7:
+                price = ts7
+            elif top_search_duration == 14:
+                price = _scale(ts7, cfg_ts14, cfg_ts7)
+            else:
+                price = _scale(ts7, cfg_ts30, cfg_ts7)
+
+            total_amount += price
+            upgrades.append(
+                {
+                    "type": "top_search",
+                    "duration": top_search_duration,
+                    "price": str(price),
+                    "name": _("أعلى نتائج البحث"),
                 }
             )
 
