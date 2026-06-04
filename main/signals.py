@@ -94,17 +94,21 @@ def notify_admin_new_ad(sender, instance, created, **kwargs):
                 message=_('تم إنشاء إعلان جديد "{ad_title}" من قبل {username}').format(
                     ad_title=instance.title, username=instance.user.username
                 ),
-                link=f"/admin/classifieds/ads/{instance.pk}/",
+                link=reverse("main:admin_ad_detail", kwargs={"ad_id": instance.pk}),
                 notification_type=Notification.NotificationType.AD_APPROVED,
             )
     else:
         # Ad was updated — notify admins if enabled
+        # Skip when an admin made the edit to avoid notifying them about their own change
+        if getattr(instance, "_edited_by_admin", False):
+            return
+
         notify_enabled = getattr(config, "NOTIFY_ADMIN_NEW_ADS", False)
         if not notify_enabled:
             return
 
         ad_url = f"{getattr(config, 'SITE_URL', '')}/classifieds/{instance.pk}/"
-        admin_url = f"/admin/classifieds/ads/{instance.pk}/"
+        admin_url = reverse("main:admin_ad_detail", kwargs={"ad_id": instance.pk})
         username = instance.user.username
         ad_title = instance.title
 
@@ -188,9 +192,11 @@ def send_ad_approval_notification(sender, instance, **kwargs):
                 # 1. Create an in-app notification
                 Notification.objects.create(
                     user=instance.user,
+                    title=_("تمت الموافقة على إعلانك"),
                     message=_(
                         'تهانينا! تمت الموافقة على إعلانك "{ad_title}" وهو الآن نشط على المنصة.'
                     ).format(ad_title=instance.title),
+                    notification_type=Notification.NotificationType.AD_APPROVED,
                     link=instance.get_absolute_url(),
                 )
 
@@ -917,7 +923,7 @@ def activate_package_on_payment_completion(sender, instance, created, **kwargs):
                         message=_(
                             'تم تفعيل باقة "{package_name}" بنجاح! لديك {ad_count} إعلان متاح.'
                         ).format(package_name=package.name, ad_count=package.ad_count),
-                        link="/publisher/dashboard/",
+                        link=reverse("main:my_ads"),
                         notification_type=Notification.NotificationType.GENERAL,
                     )
 

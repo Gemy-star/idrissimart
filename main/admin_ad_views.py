@@ -17,7 +17,7 @@ from django.views.generic import (
     DeleteView,
 )
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.views.decorators.http import require_POST
 
 from main.models import (
@@ -86,6 +86,7 @@ def approve_ad_view(request, ad_id):
             title="تم الموافقة على إعلانك",
             message=f'تم الموافقة على إعلانك "{ad.title}" وهو الآن نشط.',
             notification_type="ad_approved",
+            link=ad.get_absolute_url(),
         )
     else:
         messages.error(request, "لا يمكن الموافقة على هذا الإعلان.")
@@ -111,6 +112,7 @@ def reject_ad_view(request, ad_id):
                 title="تم رفض إعلانك",
                 message=f'تم رفض إعلانك "{ad.title}". السبب: {reason}',
                 notification_type="ad_rejected",
+                link=reverse("main:my_ads"),
             )
         else:
             messages.error(request, "لا يمكن رفض هذا الإعلان.")
@@ -246,6 +248,7 @@ def bulk_approve_ads(request):
                     title="تم الموافقة على إعلانك",
                     message=f'تم الموافقة على إعلانك "{ad.title}".',
                     notification_type="ad_approved",
+                    link=ad.get_absolute_url(),
                 )
         except ClassifiedAd.DoesNotExist:
             continue
@@ -393,6 +396,9 @@ class AdminAdUpdateView(SuperadminRequiredMixin, UpdateView):
         return context
 
     def form_valid(self, form):
+        # Flag the instance so the signal skips sending admins a
+        # "publisher edited the ad" notification when it's actually the admin editing.
+        form.instance._edited_by_admin = True
         messages.success(
             self.request, f'تم تحديث الإعلان "{form.instance.title}" بنجاح.'
         )
