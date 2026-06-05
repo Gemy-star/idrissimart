@@ -7,7 +7,7 @@
   "use strict";
 
   const SPECS = {
-    banner:       { desktop: [728,  90],  mobile: [320, 50],  mobileRequired: true  },
+    banner:       { desktop: [970, 150],  mobile: [320, 50],  mobileRequired: true  },
     sidebar:      { desktop: [300, 250],  mobile: null,        mobileRequired: false },
     popup:        { desktop: [300, 250],  mobile: null,        mobileRequired: false },
     featured_box: { desktop: [970, 250],  mobile: null,        mobileRequired: false },

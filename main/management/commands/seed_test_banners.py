@@ -30,11 +30,11 @@ SLOT_SPECS = [
 BANNER_SPECS = [
     # ── homepage-banner slot: 3 advertisers ──────────────────────────────────
     ("homepage-banner", "banner", "بانر عميل أ - شركة الأمل",    "شركة الأمل",
-     728, 90, 320, 50, "#1e3a5f", "#f0e6ff"),
+     970, 150, 320, 50, "#1e3a5f", "#f0e6ff"),
     ("homepage-banner", "banner", "بانر عميل ب - مؤسسة النور",   "مؤسسة النور",
-     728, 90, 320, 50, "#7b2000", "#fce4ec"),
+     970, 150, 320, 50, "#7b2000", "#fce4ec"),
     ("homepage-banner", "banner", "بانر عميل ج - متجر الأصيل",   "متجر الأصيل",
-     728, 90, 320, 50, "#1a5f3a", "#d8f3dc"),
+     970, 150, 320, 50, "#1a5f3a", "#d8f3dc"),
 
     # ── homepage-sidebar slot: 3 advertisers ─────────────────────────────────
     ("homepage-sidebar", "sidebar", "جانبي عميل أ - شركة الأمل",  "شركة الأمل",

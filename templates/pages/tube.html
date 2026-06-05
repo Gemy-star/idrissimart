@@ -600,6 +600,35 @@
 <script>
 let _tubeCurrentPk = null;
 
+function createTubePlayer({ embed, direct }) {
+  const isDirectVideo = /\.(mp4|webm|ogg)(\?.*)?$/i.test(direct || '');
+  const mediaUrl = isDirectVideo ? direct : embed;
+
+  if (!mediaUrl) {
+    return null;
+  }
+
+  if (isDirectVideo) {
+    const video = document.createElement('video');
+    video.src = mediaUrl;
+    video.controls = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    return video;
+  }
+
+  const iframe = document.createElement('iframe');
+  iframe.allowFullscreen = true;
+  iframe.referrerPolicy = 'strict-origin-when-cross-origin';
+  iframe.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+
+  requestAnimationFrame(() => {
+    iframe.src = mediaUrl;
+  });
+
+  return iframe;
+}
+
 function openTubeVideo(card) {
   const title   = card.dataset.title   || '';
   const embed   = card.dataset.embed   || '';
@@ -610,20 +639,16 @@ function openTubeVideo(card) {
   document.getElementById('tubeModalTitle').textContent = title;
 
   const wrap = document.getElementById('tubeVideoWrap');
-  const isDirectVideo = /\.(mp4|webm|ogg)(\?.*)?$/i.test(direct);
-
-  if (isDirectVideo) {
-    wrap.innerHTML = `<video src="${direct}" controls autoplay style="width:100%;height:100%;"></video>`;
-  } else {
-    wrap.innerHTML = `<iframe src="${embed}" allowfullscreen allow="autoplay; encrypted-media" loading="lazy"></iframe>`;
-  }
+  const overlay = document.getElementById('tubeModalOverlay');
+  const player = createTubePlayer({ embed, direct });
+  wrap.innerHTML = '';
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  if (player) wrap.appendChild(player);
 
   const descEl = document.getElementById('tubeModalDesc');
   if (desc) { descEl.textContent = desc; descEl.style.display = ''; }
   else       { descEl.style.display = 'none'; }
-
-  document.getElementById('tubeModalOverlay').classList.add('open');
-  document.body.style.overflow = 'hidden';
 
   // Count view
   if (pk && pk !== _tubeCurrentPk) {

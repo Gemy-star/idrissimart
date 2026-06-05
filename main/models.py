@@ -4842,10 +4842,10 @@ class AdSenseSlot(models.Model):
     """
 
     class SlotKey(models.TextChoices):
-        HOME_BANNER   = "home_banner",   _("الصفحة الرئيسية — بانر (728×90)")
+        HOME_BANNER   = "home_banner",   _("الصفحة الرئيسية — بانر (970×150)")
         HOME_SIDEBAR  = "home_sidebar",  _("الصفحة الرئيسية — جانبي (300×250)")
         HOME_FEATURED = "home_featured", _("الصفحة الرئيسية — مميز (970×250)")
-        CAT_BANNER    = "category_banner",   _("صفحة القسم — بانر (728×90)")
+        CAT_BANNER    = "category_banner",   _("صفحة القسم — بانر (970×150)")
         CAT_SIDEBAR   = "category_sidebar",  _("صفحة القسم — جانبي (300×250)")
         CAT_FEATURED  = "category_featured", _("صفحة القسم — مميز (970×250)")
 
@@ -4933,9 +4933,9 @@ class BannerSlot(models.Model):
     """
 
     class AdType(models.TextChoices):
-        BANNER = "banner", _("بانر إعلاني (1200×150)")
+        BANNER = "banner", _("بانر إعلاني (970×150)")
         SIDEBAR = "sidebar", _("إعلان جانبي (300×250)")
-        FEATURED_BOX = "featured_box", _("صندوق مميز (1200×250)")
+        FEATURED_BOX = "featured_box", _("صندوق مميز (970×250)")
 
     name = models.CharField(max_length=120, verbose_name=_("اسم المساحة"))
     name_ar = models.CharField(max_length=120, blank=True, verbose_name=_("الاسم بالعربية"))
@@ -5059,12 +5059,12 @@ class PaidBanner(models.Model):
         FEATURED_BOX = "featured_box", _("صندوق مميز - Featured Box")
 
     # Required image dimensions per ad type: (width, height)
-    # Sizes match actual CSS rendering dimensions (banner/featured_box are fluid-width × fixed-height).
+    # Sizes match the actual web display dimensions in the paid ad templates.
     IMAGE_SPECS = {
-        "banner":       {"desktop": (1200, 150), "mobile": (320, 50),  "mobile_required": True},
+        "banner":       {"desktop": (970, 150),  "mobile": (320, 50),  "mobile_required": True},
         "sidebar":      {"desktop": (300, 250),  "mobile": None,       "mobile_required": False},
         "popup":        {"desktop": (300, 250),  "mobile": None,       "mobile_required": False},
-        "featured_box": {"desktop": (1200, 250), "mobile": None,       "mobile_required": False},
+        "featured_box": {"desktop": (970, 250),  "mobile": None,       "mobile_required": False},
     }
 
     class PlacementType(models.TextChoices):
@@ -5127,7 +5127,7 @@ class PaidBanner(models.Model):
     image = models.ImageField(
         upload_to="paid_ads/%Y/%m/",
         verbose_name=_("صورة الإعلان - Ad Image"),
-        help_text=_("المقاس حسب النوع: بانر 1200×150 | جانبي/نافذة 300×250 | مميز 1200×250 — سيتم رفض الصورة إذا كانت الأبعاد مختلفة")
+        help_text=_("المقاس حسب النوع: بانر 970×150 | جانبي/نافذة 300×250 | مميز 970×250 — سيتم رفض الصورة إذا كانت الأبعاد مختلفة")
     )
     mobile_image = models.ImageField(
         upload_to="paid_ads/%Y/%m/mobile/",
