@@ -542,43 +542,58 @@
                     </a>
         </div>
 
-        <!-- Video Cards Row -->
-        <div class="row g-3" id="homeTubeGrid">
-          {% for video in latest_tube_videos %}
-          <div class="col-6 col-md-4 col-lg-3 col-xl-2">
-            <div class="h-tube-card"
-                 data-title="{{ video.display_title|escapejs }}"
-                 data-embed="{{ video.get_embed_url }}"
-                 data-direct="{{ video.video_url }}"
-                 data-desc="{{ video.display_description|striptags|truncatewords:25|escapejs }}"
-                 data-pk="{{ video.pk }}"
-                 onclick="openHomeTubeVideo(this)">
-              <!-- Thumbnail -->
-              <div class="h-tube-thumb">
-                {% if video.thumbnail %}
-                  <img src="{{ video.thumbnail.url }}" alt="{{ video.display_title }}"
-                       class="h-tube-thumb-img" loading="lazy">
-                {% else %}
-                  <div class="h-tube-placeholder">
-                    <i class="fas fa-film"></i>
-                  </div>
-                {% endif %}
-                <!-- Play overlay -->
-                <div class="h-tube-play">
-                  <i class="fas fa-play-circle"></i>
-                </div>
-                {% if video.duration %}
-                <span class="h-tube-duration">{{ video.duration }}</span>
-                {% endif %}
-              </div>
-              <!-- Info -->
-              <div class="h-tube-body">
-                <p class="h-tube-video-title">{{ video.display_title }}</p>
-                <p class="h-tube-views"><i class="fas fa-eye me-1"></i>{{ video.views_count }}</p>
-              </div>
+        <!-- Video Cards Swiper -->
+        <div class="position-relative">
+            <!-- زر اليمين -->
+            <div class="swiper-button-next-custom tube-next">
+                <i class="fas fa-chevron-left"></i>
+                <span class="nav-text">{% trans "فيديو" %}</span>
             </div>
-          </div>
-          {% endfor %}
+            <!-- زر الشمال -->
+            <div class="swiper-button-prev-custom tube-prev">
+                <span class="nav-text">{% trans "فيديو" %}</span>
+                <i class="fas fa-chevron-right"></i>
+            </div>
+
+            <div class="swiper homeTubeSwiper" id="homeTubeGrid">
+                <div class="swiper-wrapper">
+                  {% for video in latest_tube_videos %}
+                  <div class="swiper-slide">
+                    <div class="h-tube-card"
+                         data-title="{{ video.display_title|escapejs }}"
+                         data-embed="{{ video.get_embed_url }}"
+                         data-direct="{{ video.video_url }}"
+                         data-desc="{{ video.display_description|striptags|truncatewords:25|escapejs }}"
+                         data-pk="{{ video.pk }}"
+                         onclick="openHomeTubeVideo(this)">
+                      <!-- Thumbnail -->
+                      <div class="h-tube-thumb">
+                        {% if video.thumbnail %}
+                          <img src="{{ video.thumbnail.url }}" alt="{{ video.display_title }}"
+                               class="h-tube-thumb-img" loading="lazy">
+                        {% else %}
+                          <div class="h-tube-placeholder">
+                            <i class="fas fa-film"></i>
+                          </div>
+                        {% endif %}
+                        <!-- Play overlay -->
+                        <div class="h-tube-play">
+                          <i class="fas fa-play-circle"></i>
+                        </div>
+                        {% if video.duration %}
+                        <span class="h-tube-duration">{{ video.duration }}</span>
+                        {% endif %}
+                      </div>
+                      <!-- Info -->
+                      <div class="h-tube-body">
+                        <p class="h-tube-video-title">{{ video.display_title }}</p>
+                        <p class="h-tube-views"><i class="fas fa-eye me-1"></i>{{ video.views_count }}</p>
+                      </div>
+                    </div>
+                  </div>
+                  {% endfor %}
+                </div>
+            </div>
         </div>
 
       </div>
@@ -661,6 +676,57 @@
       _htPk = null;
     }
     document.addEventListener('keydown', e => { if(e.key==='Escape') closeHomeTubeModal(); });
+
+    // Swiper initialization for Home Tube
+    document.addEventListener('DOMContentLoaded', function() {
+        const homeTubeEl = document.querySelector('.homeTubeSwiper');
+        if (homeTubeEl) {
+            new Swiper('.homeTubeSwiper', {
+                slidesPerView: 2,
+                spaceBetween: 15,
+                navigation: {
+                    nextEl: '.tube-next',
+                    prevEl: '.tube-prev',
+                },
+                autoplay: {
+                    delay: 3500,
+                    disableOnInteraction: false,
+                    pauseOnMouseEnter: true,
+                },
+                breakpoints: {
+                    576: {
+                        slidesPerView: 2,
+                        spaceBetween: 15,
+                    },
+                    768: {
+                        slidesPerView: 3,
+                        spaceBetween: 20,
+                    },
+                    992: {
+                        slidesPerView: 4,
+                        spaceBetween: 20,
+                    },
+                    1200: {
+                        slidesPerView: 5,
+                        spaceBetween: 25,
+                    },
+                    1400: {
+                        slidesPerView: 6,
+                        spaceBetween: 25,
+                    },
+                },
+                speed: 600,
+                effect: 'slide',
+                grabCursor: true,
+                watchSlidesProgress: true,
+                on: {
+                    init: function() {
+                        console.log('🎬 Home Tube Swiper Initialized');
+                    },
+                },
+            });
+        }
+    });
     </script>
     {% endif %}
 
