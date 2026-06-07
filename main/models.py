@@ -1050,7 +1050,11 @@ class CategoryManager(TreeManager):
                 category__lft__gte=OuterRef("lft"),
                 category__rght__lte=OuterRef("rght"),
             )
-            .values("pk")
+            # Group by 'status' — since all rows have status=ACTIVE (filtered above),
+            # this produces exactly ONE group with the total count.
+            # Using .values("pk") would GROUP BY pk, returning one row per ad (each with count=1),
+            # which causes MySQL error 1242 "Subquery returns more than 1 row".
+            .values("status")
             .annotate(c=Count("pk"))
             .values("c")
         )

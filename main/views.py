@@ -78,13 +78,20 @@ class HomeView(TemplateView):
         for section_code, section_name in Category.SectionType.choices:
             # Get all nodes for this section, ordered correctly for MPTT.
             # We limit the depth to level 1 (root and their direct children).
+            # Include both country-specific categories AND global ones (country=NULL).
+            # Use filter on the base queryset BEFORE with_ad_counts() to avoid
+            # duplicate rows from the OR-join breaking the scalar subquery annotation.
+            base_ids = list(
+                Category.objects.filter(
+                    Q(country__code=selected_country) | Q(country__isnull=True),
+                    section_type=section_code,
+                    level__lte=1,
+                    is_active=True,
+                ).values_list("pk", flat=True).distinct()
+            )
             nodes = (
                 Category.objects.with_ad_counts()
-                .filter(
-                    section_type=section_code,
-                    country__code=selected_country,
-                )
-                .filter(level__lte=1, is_active=True)
+                .filter(pk__in=base_ids)
             )
 
             categories_by_section[section_code] = {
