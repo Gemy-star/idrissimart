@@ -83,11 +83,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('password_confirm')
-        password = validated_data.pop('password')
-        user = User.objects.create_user(**validated_data)
-        user.set_password(password)
-        user.save()
-        return user
+        return User.objects.create_user(**validated_data)
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
@@ -224,7 +220,7 @@ class ClassifiedAdListSerializer(serializers.ModelSerializer):
         ]
 
     def get_primary_image(self, obj):
-        image = obj.images.first()  # Get first image by order
+        image = obj.images.order_by('order').first()
         if image:
             request = self.context.get('request')
             if request:
@@ -380,8 +376,8 @@ class BlogDetailSerializer(serializers.ModelSerializer):
         ]
 
     def get_comments(self, obj):
-        comments = obj.comments.filter(active=True, parent__isnull=True)
-        return CommentSerializer(comments, many=True).data
+        comments = obj.comments.filter(active=True, parent__isnull=True).select_related('author')
+        return CommentSerializer(comments, many=True, context=self.context).data
 
     def get_likes_count(self, obj):
         return obj.get_likes_count()
@@ -408,7 +404,7 @@ class CommentSerializer(serializers.ModelSerializer):
 
     def get_replies(self, obj):
         if obj.replies.exists():
-            return CommentSerializer(obj.replies.filter(active=True), many=True).data
+            return CommentSerializer(obj.replies.filter(active=True).select_related('author'), many=True, context=self.context).data
         return []
 
 

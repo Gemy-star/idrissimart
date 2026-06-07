@@ -236,27 +236,43 @@ class MyClassifiedAdsView(LoginRequiredMixin, ListView):
         }
 
         # Add user package information
+        from django.db.models import Q
         from django.utils import timezone
 
-        active_packages = (
+        base_qs = (
             UserPackage.objects.filter(
-                user=self.request.user, expiry_date__gt=timezone.now()
+                user=self.request.user,
+                expiry_date__gt=timezone.now(),
+                ads_remaining__gt=0,
             )
             .select_related("package")
-            .order_by("-expiry_date")
         )
 
-        # Member free-balance should mirror the default free package when it exists.
-        free_package = active_packages.filter(package__is_default=True).first()
-        if free_package:
-            total_ads_remaining = free_package.ads_remaining
-        else:
-            total_ads_remaining = sum(pkg.ads_remaining for pkg in active_packages)
+        # One free/default package (highest remaining, then latest expiry)
+        free_package = (
+            base_qs.filter(Q(package__isnull=True) | Q(package__is_default=True))
+            .order_by("-ads_remaining", "-expiry_date")
+            .first()
+        )
+
+        # One paid package (not default, linked to a real package)
+        paid_package = (
+            base_qs.filter(package__isnull=False, package__is_default=False)
+            .order_by("-expiry_date", "-ads_remaining")
+            .first()
+        )
+
+        display_packages = [p for p in [free_package, paid_package] if p is not None]
+        total_ads_remaining = (
+            free_package.ads_remaining
+            if free_package
+            else sum(p.ads_remaining for p in display_packages)
+        )
 
         context["package_info"] = {
             "total_ads_remaining": total_ads_remaining,
-            "active_packages": active_packages,
-            "has_active_package": active_packages.exists(),
+            "active_packages": display_packages,
+            "has_active_package": bool(display_packages),
         }
 
         return context

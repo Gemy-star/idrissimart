@@ -8,7 +8,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, IsAuthenticate
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import Q, Count, Avg
+from django.db.models import Q, Count, Avg, F
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.tokens import default_token_generator
@@ -100,6 +100,16 @@ class UserViewSet(viewsets.ModelViewSet):
             return [IsAuthenticated()]
         return [IsAuthenticatedOrReadOnly()]
 
+    def update(self, request, *args, **kwargs):
+        if self.get_object().pk != request.user.pk and not request.user.is_staff:
+            return Response({'detail': 'You can only update your own profile.'}, status=status.HTTP_403_FORBIDDEN)
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if self.get_object().pk != request.user.pk and not request.user.is_staff:
+            return Response({'detail': 'You can only delete your own account.'}, status=status.HTTP_403_FORBIDDEN)
+        return super().destroy(request, *args, **kwargs)
+
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def me(self, request):
         """Get current user profile"""
@@ -152,12 +162,13 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Category listing endpoint
     """
-    queryset = Category.objects.all()
+    queryset = Category.objects.filter(is_active=True)
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['section_type', 'parent', 'country']
     search_fields = ['name', 'name_ar']
-    ordering_fields = ['name']
+    ordering_fields = ['name', 'order']
+    ordering = ['order']
 
     def get_serializer_class(self):
         if self.action == 'retrieve':
@@ -195,7 +206,7 @@ class CategoryViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['get'])
     def root_categories(self, request):
         """Get only root categories"""
-        categories = Category.objects.filter(parent__isnull=True)
+        categories = Category.objects.filter(parent__isnull=True, is_active=True).order_by('order')
         section_type = request.query_params.get('section_type')
         if section_type:
             categories = categories.filter(section_type=section_type)
@@ -210,7 +221,7 @@ class ClassifiedAdViewSet(viewsets.ModelViewSet):
     """
     Classified ads CRUD endpoint
     """
-    queryset = ClassifiedAd.objects.filter(status='active')
+    queryset = ClassifiedAd.objects.filter(status='active').select_related('user', 'category', 'country').prefetch_related('images')
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['category', 'country', 'city', 'status', 'is_highlighted', 'is_urgent', 'is_pinned']
     search_fields = ['title', 'description']
@@ -287,7 +298,7 @@ class ClassifiedAdViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def featured(self, request):
         """Get featured ads"""
-        ads = self.get_queryset().filter(is_featured=True)[:10]
+        ads = self.get_queryset().filter(is_highlighted=True)[:10]
         serializer = ClassifiedAdListSerializer(ads, many=True, context={'request': request})
         return Response(serializer.data)
 
@@ -308,7 +319,7 @@ class ClassifiedAdViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def my_ads(self, request):
         """Get current user's ads"""
-        ads = ClassifiedAd.objects.filter(user=request.user).order_by('-created_at')
+        ads = ClassifiedAd.objects.filter(user=request.user).select_related('category', 'country').prefetch_related('images').order_by('-created_at')
 
         page = self.paginate_queryset(ads)
         if page is not None:
@@ -335,7 +346,7 @@ class BlogViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Blog listing endpoint
     """
-    queryset = Blog.objects.filter(is_published=True)
+    queryset = Blog.objects.filter(is_published=True).select_related('author', 'category').prefetch_related('likes')
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ['category', 'author']
@@ -400,7 +411,7 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         return ChatRoom.objects.filter(
             Q(publisher=user) | Q(client=user),
             is_active=True
-        ).order_by('-updated_at')
+        ).select_related('publisher', 'client', 'ad').order_by('-updated_at')
 
     @action(detail=True, methods=['post'])
     def send_message(self, request, pk=None):
@@ -419,7 +430,8 @@ class ChatRoomViewSet(viewsets.ModelViewSet):
         serializer.save(room=room, sender=request.user)
 
         # Update room timestamp
-        room.save()
+        room.updated_at = timezone.now()
+        room.save(update_fields=['updated_at'])
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -891,7 +903,11 @@ class UserPackageViewSet(viewsets.ReadOnlyModelViewSet):
         # Short-circuit for Swagger schema generation
         if getattr(self, 'swagger_fake_view', False):
             return UserPackage.objects.none()
-        return UserPackage.objects.filter(user=self.request.user)
+        return UserPackage.objects.filter(
+            user=self.request.user,
+            expiry_date__gt=timezone.now(),
+            ads_remaining__gt=0,
+        ).select_related('package')
 
 
 # ==================== FAQ ViewSets ====================
@@ -915,7 +931,7 @@ class FAQViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter]
     filterset_fields = ['category']
-    search_fields = ['question', 'question_en', 'answer', 'answer_en']
+    search_fields = ['question', 'question_ar', 'answer', 'answer_ar']
     ordering = ['order']
 
 
@@ -935,16 +951,24 @@ class SafetyTipViewSet(viewsets.ReadOnlyModelViewSet):
 
 class ContactMessageViewSet(viewsets.ModelViewSet):
     """
-    Contact messages endpoint
+    Contact messages endpoint — create is public; list/retrieve are restricted to own messages.
     """
     serializer_class = ContactMessageSerializer
-    permission_classes = [AllowAny]
-    queryset = ContactMessage.objects.all()
+    http_method_names = ['get', 'post', 'head', 'options']
 
     def get_permissions(self):
         if self.action == 'create':
             return [AllowAny()]
         return [IsAuthenticated()]
+
+    def get_queryset(self):
+        if getattr(self, 'swagger_fake_view', False):
+            return ContactMessage.objects.none()
+        if self.request.user.is_authenticated:
+            if self.request.user.is_staff:
+                return ContactMessage.objects.all().order_by('-created_at')
+            return ContactMessage.objects.filter(email=self.request.user.email).order_by('-created_at')
+        return ContactMessage.objects.none()
 
 
 # ==================== Home Page ViewSets ====================
@@ -1304,15 +1328,15 @@ class PaidBannerViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[AllowAny])
     def track_click(self, request, pk=None):
         """Increment the click counter for an active paid ad."""
-        from django.db.models import F
         ad = get_object_or_404(
             PaidBanner,
             pk=pk,
             status=PaidBanner.Status.ACTIVE,
             is_active=True,
         )
-        PaidAdvertisement.objects.filter(pk=ad.pk).update(clicks_count=F('clicks_count') + 1)
+        PaidBanner.objects.filter(pk=ad.pk).update(clicks_count=F('clicks_count') + 1)
         return Response({'status': 'tracked'})
+
 
 
 # ==================== Password Reset API Views ====================
