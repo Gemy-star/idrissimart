@@ -184,7 +184,7 @@ class PublisherFacebookSharePaymentView(LoginRequiredMixin, TemplateView):
             user=request.user,
             amount=payment_amount,
             currency=payment_currency,
-            payment_method=payment_method,
+            provider=payment_method,
             status='pending',
             description=f'Facebook Share Request for Ad: {share_request.ad.title}',
             metadata={

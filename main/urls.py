@@ -350,7 +350,7 @@ urlpatterns = [
     ),
     path(
         "ajax/subcategories/<int:category_id>/",
-        views.get_subcategories_ajax,
+        views.get_subcategories_path,
         name="ajax_get_subcategories",
     ),
     path(

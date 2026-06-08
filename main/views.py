@@ -2557,8 +2557,8 @@ def enhanced_ad_creation_success_view(request, ad_id=None):
     return render(request, "classifieds/ad_create_success.html", context)
 
 
-def get_subcategories(request, category_id):
-    """AJAX view to get subcategories with Arabic support"""
+def get_subcategories_path(request, category_id):
+    """AJAX view to get subcategories via URL path param"""
     try:
         category = get_object_or_404(Category, id=category_id)
         subcategories = category.get_children().filter(is_active=True)

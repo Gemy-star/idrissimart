@@ -285,7 +285,7 @@ class AdminAdDetailView(SuperadminRequiredMixin, DetailView):
         # Stats
         context["stats"] = {
             "total_views": ad.views_count,
-            "total_favorites": ad.favorited_by.count(),
+            "total_favorites": ad.wishlist_items.count(),
             "days_active": (
                 (timezone.now() - ad.created_at).days if ad.status == "active" else 0
             ),
